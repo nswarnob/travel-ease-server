@@ -1,5 +1,7 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
+const cors = require("cors");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const port = process.env.PORT || 3000;
 
@@ -23,6 +25,56 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
+    const db = client.db("myDB");
+    const vehicleCollection = db.collection("vehicleDB");
+    const bookingCollection = db.collection("carBookings");
+
+    app.get("/all-vehicles", async (req, res) => {
+      try {
+        const vehicles = await vehicleCollection.find().toArray();
+        res.json(vehicles);
+      } catch (err) {
+        console.error("Error fetching vehicles:", err);
+      }
+    });
+
+    //latest vehicles
+    app.get("/latest-vehicles", async (req, res) => {
+      try {
+        const latestVehicles = await vehicleCollection
+          .find()
+          .sort({ createdAt: -1 })
+          .limit(6)
+          .toArray();
+        res.json(latestVehicles);
+      } catch (err) {
+        console.log(err);
+      }
+    });
+
+    //recieving booking data
+    app.post("/car-bookings", async (req, res) => {
+      try {
+        const booking = req.body;
+        const existingBooking = await bookingCollection.findOne({
+          email: booking.email,
+          booking_id: booking.booking_id,
+        });
+
+        if (existingBooking) {
+          return res
+            .status(409)
+            .send({ message: "You already booked this car." });
+        }
+        const result = await bookingCollection.insertOne(booking);
+        
+        res.status(201).send("Booked Successfull");
+            } catch (err) {
+        console.log(err);
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
@@ -30,11 +82,11 @@ async function run() {
     );
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
   }
 }
 run().catch(console.dir);
 
+//api
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
