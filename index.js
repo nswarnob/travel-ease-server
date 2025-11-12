@@ -86,6 +86,26 @@ async function run() {
       res.send(result);
     })
 
+
+    //remove my vehicles
+    app.delete("/all-vehicles/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const target = { _id: new ObjectId(id) };
+        const result = await vehicleCollection.deleteOne(target);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Vehicle not found" });
+        }
+
+        res.status(200).send({ message: "Vehicle deleted successfully" });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: "Server error" });
+      }
+    });
+
+
     
 
     //latest vehicles
