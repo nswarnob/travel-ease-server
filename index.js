@@ -122,7 +122,7 @@ async function run() {
       }
     });
 
-    //recieving booking data
+    //recieving and storing booking data
     app.post("/car-bookings", async (req, res) => {
       try {
         const booking = req.body;
@@ -144,7 +144,7 @@ async function run() {
       }
     });
 
-    //by frontend user request
+    //booking req showing by frontend user email
     app.get("/car-bookings", async (req, res) => {
       try {
         const email = req.query.email;
@@ -154,6 +154,22 @@ async function run() {
         }
         const bookings = await bookingCollection.find(query).toArray();
         res.send(bookings);
+      } catch (err) {
+        console.log(err);
+      }
+    });
+
+    //booking data removing by frontend user req
+    app.delete("/car-bookings/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const finding = { _id: new ObjectId(id) };
+        const result = await bookingCollection.deleteOne(finding);
+        if (result.deletedCount === 1) {
+          res.status(200).json({ message: "Booking deleted successfully" });
+        } else {
+          res.status(404).json({ message: "Booking not found" });
+        }
       } catch (err) {
         console.log(err);
       }
