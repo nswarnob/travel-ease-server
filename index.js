@@ -5,7 +5,7 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 3000;
 
-// CORS - FIXED: Removed trailing slash
+// CORS -
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
@@ -69,33 +69,71 @@ const verifyFirebaseToken = async (req, res, next) => {
   }
 };
 
-// MongoDB connection - FIXED for Vercel serverless
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.dveploj.mongodb.net/?appName=Cluster0`;
+// ===== GLOBAL DATABASE VARIABLES =====
+let db;
+let vehicleCollection;
+let bookingCollection;
+let isConnected = false;
 
-let cachedClient = null;
-let cachedDb = null;
+// MongoDB connection
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.dveploj.mongodb.net/myDB?retryWrites=true&w=majority`;
 
 async function connectToDatabase() {
-  if (cachedClient && cachedDb) {
-    return { client: cachedClient, db: cachedDb };
+  if (isConnected) {
+    console.log("Using existing database connection");
+    return;
   }
 
-  const client = new MongoClient(uri, {
-    serverApi: {
-      version: ServerApiVersion.v1,
-      strict: true,
-      deprecationErrors: true,
-    },
-  });
+  try {
+    console.log("Connecting to MongoDB...");
+    const client = new MongoClient(uri, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+      },
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
 
-  await client.connect();
-  const db = client.db("myDB");
+    await client.connect();
+    console.log("MongoDB connected successfully!");
 
-  cachedClient = client;
-  cachedDb = db;
-
-  return { client, db };
+    // Initialize global variables
+    db = client.db("myDB");
+    vehicleCollection = db.collection("vehicleDB");
+    bookingCollection = db.collection("carBookings");
+    
+    // Test connection
+    await db.command({ ping: 1 });
+    console.log("MongoDB ping successful!");
+    
+    isConnected = true;
+  } catch (error) {
+    console.error("MongoDB connection failed:", error.message);
+    isConnected = false;
+    throw new Error(`Database connection failed: ${error.message}`);
+  }
 }
+
+// Initialize database connection
+connectToDatabase().catch(console.error);
+
+// Middleware to ensure DB connection before handling requests
+const ensureDbConnection = async (req, res, next) => {
+  if (!isConnected) {
+    try {
+      await connectToDatabase();
+    } catch (error) {
+      return res.status(500).json({ error: "Database connection failed" });
+    }
+  }
+  next();
+};
+
+// Apply DB connection middleware to all routes
+app.use(ensureDbConnection);
 
 // Root route
 app.get("/", (req, res) => {
@@ -110,8 +148,6 @@ app.get("/", (req, res) => {
 // Get all vehicles
 app.get("/all-vehicles", async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const vehicleCollection = db.collection("vehicleDB");
     const vehicles = await vehicleCollection.find().toArray();
     res.json(vehicles);
   } catch (err) {
@@ -123,8 +159,7 @@ app.get("/all-vehicles", async (req, res) => {
 // Get latest vehicles
 app.get("/latest-vehicles", async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const vehicleCollection = db.collection("vehicleDB");
+
     const latestVehicles = await vehicleCollection
       .find()
       .sort({ createdAt: -1 })
@@ -142,8 +177,6 @@ app.get("/latest-vehicles", async (req, res) => {
 // Add new vehicle
 app.post("/all-vehicles", verifyFirebaseToken, async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const vehicleCollection = db.collection("vehicleDB");
     const newVehicle = req.body;
     const result = await vehicleCollection.insertOne(newVehicle);
     res.status(201).json({
@@ -159,8 +192,6 @@ app.post("/all-vehicles", verifyFirebaseToken, async (req, res) => {
 // Get user's vehicles
 app.get("/my-vehicles", verifyFirebaseToken, async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const vehicleCollection = db.collection("vehicleDB");
     const email = req.user.email;
     const query = { userEmail: email };
     const userVehicles = await vehicleCollection.find(query).toArray();
@@ -174,8 +205,6 @@ app.get("/my-vehicles", verifyFirebaseToken, async (req, res) => {
 // Get single vehicle for update
 app.get("/all-vehicles/:id", verifyFirebaseToken, async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const vehicleCollection = db.collection("vehicleDB");
     const id = req.params.id;
     const query = { _id: new ObjectId(id) };
     const vehicle = await vehicleCollection.findOne(query);
@@ -194,8 +223,6 @@ app.get("/all-vehicles/:id", verifyFirebaseToken, async (req, res) => {
 // Update vehicle
 app.put("/all-vehicles/:id", verifyFirebaseToken, async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const vehicleCollection = db.collection("vehicleDB");
     const id = req.params.id;
     const updatedData = req.body;
     const result = await vehicleCollection.updateOne(
@@ -217,8 +244,6 @@ app.put("/all-vehicles/:id", verifyFirebaseToken, async (req, res) => {
 // Delete vehicle
 app.delete("/all-vehicles/:id", verifyFirebaseToken, async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const vehicleCollection = db.collection("vehicleDB");
     const id = req.params.id;
     const result = await vehicleCollection.deleteOne({ _id: new ObjectId(id) });
 
@@ -236,8 +261,6 @@ app.delete("/all-vehicles/:id", verifyFirebaseToken, async (req, res) => {
 // Create booking
 app.post("/car-bookings", verifyFirebaseToken, async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const bookingCollection = db.collection("carBookings");
     const booking = req.body;
 
     const existingBooking = await bookingCollection.findOne({
@@ -263,8 +286,6 @@ app.post("/car-bookings", verifyFirebaseToken, async (req, res) => {
 // Get user's bookings
 app.get("/car-bookings", verifyFirebaseToken, async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const bookingCollection = db.collection("carBookings");
     const email = req.user.email;
     const query = { email };
     const bookings = await bookingCollection.find(query).toArray();
@@ -278,8 +299,6 @@ app.get("/car-bookings", verifyFirebaseToken, async (req, res) => {
 // Delete booking
 app.delete("/car-bookings/:id", verifyFirebaseToken, async (req, res) => {
   try {
-    const { db } = await connectToDatabase();
-    const bookingCollection = db.collection("carBookings");
     const { id } = req.params;
     const result = await bookingCollection.deleteOne({ _id: new ObjectId(id) });
 
@@ -294,5 +313,4 @@ app.delete("/car-bookings/:id", verifyFirebaseToken, async (req, res) => {
   }
 });
 
-// Export for Vercel
 module.exports = app;
