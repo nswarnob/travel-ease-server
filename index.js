@@ -88,27 +88,7 @@ async function run() {
     const vehicleCollection = db.collection("vehicleDB");
     const bookingCollection = db.collection("carBookings");
 
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
-  } finally {
-    // Ensures that the client will close when you finish/error
-  }
-}
-run().catch(console.dir);
-
-//route
-app.get("/", (req, res) => {
-  res.json({
-    message: "Travel Ease Server is Running!",
-    Timestamp: new Date().toISOString()
-  });
-});
-
-
-  //public
+    //public
     app.get("/all-vehicles", async (req, res) => {
       try {
         const vehicles = await vehicleCollection.find().toArray();
@@ -255,5 +235,23 @@ app.get("/", (req, res) => {
       }
     });
 
+    // Send a ping to confirm a successful connection
+    await client.db("admin").command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
+  } finally {
+    // Ensures that the client will close when you finish/error
+  }
+}
+run().catch(console.dir);
+
+//api
+app.get("/", (req, res) => {
+  res.json({
+    message: "Travel Ease Server is Running!",
+    Timestamp: new Date().toISOString()
+  });
+});
 
 module.exports = app;
