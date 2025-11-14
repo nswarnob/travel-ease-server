@@ -9,7 +9,7 @@ const port = process.env.PORT || 3000;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-  "https://travel-ease-client-eta.vercel.app"
+  "https://travel-ease-client-eta.vercel.app",
 ];
 
 app.use(
@@ -17,7 +17,8 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
       if (allowedOrigins.indexOf(origin) === -1) {
-        const msg = "The CORS policy for this site does not allow access from the specified Origin.";
+        const msg =
+          "The CORS policy for this site does not allow access from the specified Origin.";
         return callback(new Error(msg), false);
       }
       return callback(null, true);
@@ -50,12 +51,12 @@ const verifyFirebaseToken = async (req, res, next) => {
   if (!req.headers) {
     return res.status(401).send({ message: "Unauthorized person" });
   }
-  
+
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).send({ message: "Unauthorized person - No token" });
   }
-  
+
   const token = authHeader.split(" ")[1];
 
   try {
@@ -100,7 +101,7 @@ async function connectToDatabase() {
 app.get("/", (req, res) => {
   res.json({
     message: "Travel Ease Server is Running!",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -145,9 +146,9 @@ app.post("/all-vehicles", verifyFirebaseToken, async (req, res) => {
     const vehicleCollection = db.collection("vehicleDB");
     const newVehicle = req.body;
     const result = await vehicleCollection.insertOne(newVehicle);
-    res.status(201).json({ 
+    res.status(201).json({
       message: "Added successfully",
-      vehicleId: result.insertedId 
+      vehicleId: result.insertedId,
     });
   } catch (err) {
     console.error("Error adding vehicle:", err);
@@ -178,11 +179,11 @@ app.get("/all-vehicles/:id", verifyFirebaseToken, async (req, res) => {
     const id = req.params.id;
     const query = { _id: new ObjectId(id) };
     const vehicle = await vehicleCollection.findOne(query);
-    
+
     if (!vehicle) {
       return res.status(404).json({ error: "Vehicle not found" });
     }
-    
+
     res.json(vehicle);
   } catch (err) {
     console.error("Error fetching vehicle:", err);
@@ -201,11 +202,11 @@ app.put("/all-vehicles/:id", verifyFirebaseToken, async (req, res) => {
       { _id: new ObjectId(id) },
       { $set: updatedData }
     );
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: "Vehicle not found" });
     }
-    
+
     res.json({ message: "Vehicle updated successfully", result });
   } catch (err) {
     console.error("Error updating vehicle:", err);
@@ -238,7 +239,7 @@ app.post("/car-bookings", verifyFirebaseToken, async (req, res) => {
     const { db } = await connectToDatabase();
     const bookingCollection = db.collection("carBookings");
     const booking = req.body;
-    
+
     const existingBooking = await bookingCollection.findOne({
       email: booking.email,
       booking_id: booking.booking_id,
@@ -247,11 +248,11 @@ app.post("/car-bookings", verifyFirebaseToken, async (req, res) => {
     if (existingBooking) {
       return res.status(409).json({ message: "You already booked this car." });
     }
-    
+
     const result = await bookingCollection.insertOne(booking);
-    res.status(201).json({ 
+    res.status(201).json({
       message: "Booked successfully",
-      bookingId: result.insertedId 
+      bookingId: result.insertedId,
     });
   } catch (err) {
     console.error("Error creating booking:", err);
@@ -281,7 +282,7 @@ app.delete("/car-bookings/:id", verifyFirebaseToken, async (req, res) => {
     const bookingCollection = db.collection("carBookings");
     const { id } = req.params;
     const result = await bookingCollection.deleteOne({ _id: new ObjectId(id) });
-    
+
     if (result.deletedCount === 1) {
       res.status(200).json({ message: "Booking deleted successfully" });
     } else {
