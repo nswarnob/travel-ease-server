@@ -12,14 +12,21 @@ app.use(express.json());
 
 //firebase-related
 const admin = require("firebase-admin");
+let serviceAccount;
 
-const serviceAccount = require("./firebase-key.json");
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} else {
+  serviceAccount = require("./firebase-key.json");
+}
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
 });
 
 
+
+//middleware for authorization
 const verifyFirebaseToken = async(req, res, next)=>{
  const authHeader = req.headers.authorization;
   if(!authHeader){
