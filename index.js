@@ -2,16 +2,17 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId, Timestamp } = require("mongodb");
 const port = process.env.PORT || 3000;
 
+
+//cors 
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://travel-ease-client-eta.vercel.app/",
 ];
 
-//middleware
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -28,6 +29,9 @@ app.use(
     credentials: true,
   })
 );
+
+
+//express middleware
 app.use(express.json());
 
 
@@ -242,9 +246,10 @@ run().catch(console.dir);
 
 //api
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.json({
+    message: "Travel Ease Server is Running!",
+    Timestamp: new Date().toISOString()
+  });
 });
 
-app.listen(port, () => {
-  console.log(`travel-ease-server-running: ${port}`);
-});
+module.exports = app;
