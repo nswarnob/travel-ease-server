@@ -10,7 +10,7 @@ const port = process.env.PORT || 3000;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-  "https://travel-ease-client-eta.vercel.app/",
+  "https://travel-ease-client-eta.vercel.app",
 ];
 
 app.use(
@@ -88,7 +88,27 @@ async function run() {
     const vehicleCollection = db.collection("vehicleDB");
     const bookingCollection = db.collection("carBookings");
 
-    //public
+    // Send a ping to confirm a successful connection
+    await client.db("admin").command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
+  } finally {
+    // Ensures that the client will close when you finish/error
+  }
+}
+run().catch(console.dir);
+
+//route
+app.get("/", (req, res) => {
+  res.json({
+    message: "Travel Ease Server is Running!",
+    Timestamp: new Date().toISOString()
+  });
+});
+
+
+  //public
     app.get("/all-vehicles", async (req, res) => {
       try {
         const vehicles = await vehicleCollection.find().toArray();
@@ -98,6 +118,8 @@ async function run() {
       }
     });
 
+
+    
     //added vehicles from frontend - private
     app.post("/all-vehicles", verifyFirebaseToken, async (req, res) => {
       try {
@@ -233,23 +255,5 @@ async function run() {
       }
     });
 
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
-  } finally {
-    // Ensures that the client will close when you finish/error
-  }
-}
-run().catch(console.dir);
-
-//api
-app.get("/", (req, res) => {
-  res.json({
-    message: "Travel Ease Server is Running!",
-    Timestamp: new Date().toISOString()
-  });
-});
 
 module.exports = app;
