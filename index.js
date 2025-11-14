@@ -9,6 +9,34 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+
+//firebase-related
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./firebase-key.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+
+const verifyFirebaseToken = async(req, res, next)=>{
+ const authHeader = req.headers.authorization;
+  if(!authHeader){
+    return res.status(401).send('Unauthorized person;')
+  }
+  const token= authHeader.split(' ')[1];
+
+  try{
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.user = decoded;
+    next()
+  }catch(err){
+     return res.status(401).send('Unauthorized person;')
+  }
+}
+
+
 //server connection
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.dveploj.mongodb.net/?appName=Cluster0`;
 
@@ -30,6 +58,8 @@ async function run() {
     const vehicleCollection = db.collection("vehicleDB");
     const bookingCollection = db.collection("carBookings");
 
+
+    //public
     app.get("/all-vehicles", async (req, res) => {
       try {
         const vehicles = await vehicleCollection.find().toArray();
@@ -39,11 +69,12 @@ async function run() {
       }
     });
 
-    //added vehicles from frontend
-    app.post("/all-vehicles", async (req, res) => {
+    //added vehicles from frontend - private
+    app.post("/all-vehicles", verifyFirebaseToken, async (req, res) => {
       try {
         const newVehicle = req.body;
         const newVehicles = await vehicleCollection.insertOne(newVehicle);
+        res.json(newVehicles)
         res.status(201).send("Added Successfull");
       } catch (err) {
         console.log(err);
@@ -51,9 +82,9 @@ async function run() {
     });
 
     //showcasing that are added by user
-    app.get("/my-vehicles", async (req, res) => {
+    app.get("/my-vehicles",verifyFirebaseToken, async (req, res) => {
       try {
-        const email = req.query.email;
+        const email = req.user.email;
         let query = {};
         if (email) {
           query = { userEmail:email };
@@ -67,16 +98,20 @@ async function run() {
 
 
     //for update vehicle get old details
-    app.get('/all-vehicles/:id', async(req,res)=>{
-      const id = req.params.id;
+    app.get('/all-vehicles/:id',verifyFirebaseToken, async(req,res)=>{
+      try{
+        const id = req.params.id;
       const query = {_id: new ObjectId(id)}
       const vehicle = await vehicleCollection.findOne(query);
       res.send(vehicle);
+      } catch (err) {
+        console.log(err);
+      }
     })
    
 
     //for update the vehicle details
-    app.put('/all-vehicles/:id', async(req, res)=>{
+    app.put('/all-vehicles/:id',verifyFirebaseToken, async(req, res)=>{
       const id = req.params.id;
       const updatedData = req.body;
       const result = await vehicleCollection.updateOne(
@@ -88,7 +123,7 @@ async function run() {
 
 
     //remove my vehicles
-    app.delete("/all-vehicles/:id", async (req, res) => {
+    app.delete("/all-vehicles/:id",verifyFirebaseToken, async (req, res) => {
       try {
         const id = req.params.id;
         const target = { _id: new ObjectId(id) };
@@ -123,7 +158,7 @@ async function run() {
     });
 
     //recieving and storing booking data
-    app.post("/car-bookings", async (req, res) => {
+    app.post("/car-bookings",verifyFirebaseToken, async (req, res) => {
       try {
         const booking = req.body;
         const existingBooking = await bookingCollection.findOne({
@@ -145,9 +180,9 @@ async function run() {
     });
 
     //booking req showing by frontend user email
-    app.get("/car-bookings", async (req, res) => {
+    app.get("/car-bookings",verifyFirebaseToken, async (req, res) => {
       try {
-        const email = req.query.email;
+        const email = req.user.email;
         let query = {};
         if (email) {
           query = { email };
@@ -160,7 +195,7 @@ async function run() {
     });
 
     //booking data removing by frontend user req
-    app.delete("/car-bookings/:id", async (req, res) => {
+    app.delete("/car-bookings/:id",verifyFirebaseToken, async (req, res) => {
       try {
         const { id } = req.params;
         const finding = { _id: new ObjectId(id) };
